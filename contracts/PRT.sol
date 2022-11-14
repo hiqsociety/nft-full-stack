@@ -11,21 +11,28 @@ import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import 'multi-token-standard/contracts/tokens/ERC1155/ERC1155.sol';
+import 'multi-token-standard/contracts/tokens/ERC1155/ERC1155Metadata.sol';
+import 'multi-token-standard/contracts/tokens/ERC1155/ERC1155MintBurn.sol';
 
 // import "hardhat/console.sol";
 
-contract PRT is ERC1155, Ownable, ReentrancyGuard {
+contract PRT is ERC1155, ERC1155MintBurn, ERC1155Metadata, Ownable, ReentrancyGuard {
 
     using SafeMath for uint256;
+    using Strings for string;
     
     using Counters for Counters.Counter;
 
+    address proxyRegistryAddress;
+    // Contract name
+    string public name;
+    // Contract symbol
+    string public symbol;
+    
     Counters.Counter public _tokenPRTID_index;
     Counters.Counter public _win_counter;
     Counters.Counter public _tokenIdCounter;
-
-    address proxyRegistryAddress;
 
     uint256 public constant NUM_TOTAL = 1000;
     uint256 public constant MAX_SUPPLY_FOR_TOKEN = 20000;
@@ -59,29 +66,21 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
     // ID #20,001 to ID #180,000
     mapping(address => uint256[]) public userPRTs;
     mapping(uint => address) public prtPerAddress;
-    mapping(address => bool) public winners;
-    
+    mapping(address => uint256) public winners;
     
     uint16[] public intArr;
 
-    constructor(address _proxyRegistryAddress) // 0xC6CD41b08DC8f9124933d377431480c69F1e1C9f
-        ERC1155(
-            "ipfs://QmU5rGmMp93x6wAZctKiiTxiVbVoQ5h72R9e9SHgQqv6Up/nft/collections/genesis/json/{id}.json" //default way
-        ) ReentrancyGuard() // A modifier that can prevent reentrancy during certain functions
-    {
-
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        address _proxyRegistryAddress
+    ) public {
         intArr = new uint16[](MAX_SUPPLY_FOR_TOKEN/NUM_TOTAL);
         intArr[0]=4;
-        proxyRegistryAddress = _proxyRegistryAddress;
-    }
 
-   function uri(uint256 tokenId) override public view returns (string memory) {
-        return(_uris[tokenId]);
-    }
-    
-    function setTokenUri(uint256 tokenId, string memory uri_to_update) public onlyOwner {
-        require(bytes(_uris[tokenId]).length == 0, "Cannot set uri twice"); //can do it once once
-        _uris[tokenId] = uri_to_update; 
+        name = _name;
+        symbol = _symbol;
+        proxyRegistryAddress = _proxyRegistryAddress;
     }
 
 
@@ -91,9 +90,8 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
     event RTWinnerAddress(address winner, uint winnerTokenPRTID);
     event LastIntArrStore(uint index, uint indexArr);
     event EmitmintIsOpen(string msg);
-    event Minter(address indexed from, uint256 tokenID, uint256 counterTokenID, uint price); /* This is an event */
-
-
+    event Minter(address indexed from, uint256 tokenID, uint256 counterTokenID, uint price, string uri); /* This is an event */
+    event MessageForMinter(address indexed to, uint256 PRTIDcounter, string msg); /* This is an event */
 
     // ---modifiers--- do not remove this function
     modifier isValidMerkleProof(bytes32[] calldata _proof) {//we need this magic to be sure accounts is holder of PRT
@@ -130,8 +128,8 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
         mintIsOpen = !mintIsOpen; //only owner can toggle presale
     }
 
-    function setWinnerToggle(address addr) public onlyOwner {
-        winners[addr] = !winners[addr];
+    function setWinner(address addr) public onlyOwner {
+        winners[addr] = MAX_SUPPLY_PRT + 1;//fake for test frontend only
     }
 
 
@@ -161,7 +159,7 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
     }
 
     function isWinner(address addr) public view onlyAccounts returns(bool){
-        return winners[addr];
+        return winners[addr] != 0;
     }
 
 
@@ -169,7 +167,7 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
 
         require(msg.sender != address(0), "Sender is not exist");
         
-        require(winners[msg.sender] == true, "You are not a winner");
+        require(winners[msg.sender] != 0, "You are not a winner");
 
         counterTokenID = _tokenIdCounter.current();
 
@@ -180,9 +178,13 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
         require(tokenID >= 5 && tokenID <= MAX_SUPPLY_FOR_TOKEN, "Error: tokenID < 5 OR tokenID > MAX_SUPPLY_FOR_TOKEN");
         // require(getTokenID(msg.sender) == 0, "This address already own token");
 
-        if (counterTokenID < 1000) {
+        // holder of PRT ID > MAX_SUPPLY_PRT, mint free
+        if (winners[msg.sender] > MAX_SUPPLY_PRT) {
+            emit MessageForMinter(msg.sender, winners[msg.sender], "You mint free"); /* This is an event */
             mintFree(tokenID);
+
         } else {
+            emit MessageForMinter(msg.sender, winners[msg.sender], "You can not mint free, price is 0.00002098755 eth"); /* This is an event */
             uint weiPrice = 20987550000000; //0.00002098755 eth;
             mintPayable(tokenID, weiPrice);
         }
@@ -190,11 +192,36 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
 
     }
 
+    //nft uri metadata
+   function uri(
+    uint256 _id
+  ) public view returns (string memory) {
+    return Strings.strConcat(
+      baseMetadataURI,
+      Strings.uint2str(_id)
+    );
+  }
+
+  /**
+    * @dev Returns whether the specified token exists by checking to see if it has a creator
+    * @param _id uint256 ID of the token to query the existence of
+    * @return bool whether the token exists
+    */
+  function _exists(
+    uint256 _id
+  ) internal view returns (bool) {
+    return creators[_id] != address(0);
+  }
+  
+    function setBaseMetadataURI(string memory _newBaseMetadataURI) public onlyOwner {
+        _setBaseMetadataURI(_newBaseMetadataURI);
+    }
+
     function mintFree(uint256 tokenID) internal onlyAccounts nonReentrant {
         _mint(msg.sender, tokenID, 1, "");
         _balancesnft[msg.sender] = tokenID;
 
-        emit Minter(msg.sender, tokenID, counterTokenID, 0);//free minted
+        emit Minter(msg.sender, tokenID, counterTokenID, 0, uri(tokenID));//free minted
 
     }
     //mint with price
@@ -210,14 +237,14 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
         _mint(msg.sender, tokenID, 1, "");
         _balancesnft[msg.sender] = tokenID;
 
-        emit Minter(msg.sender, tokenID, counterTokenID, weiPrice);//minted with price
+        emit Minter(msg.sender, tokenID, counterTokenID, weiPrice, uri(tokenID));//minted with price
     }
 
 
     function balanceOfNFTByAddress()  public view onlyAccounts  returns (uint256) {
         require(msg.sender != address(0), "Sender is not exist");
         
-        require(winners[msg.sender] == true, "Sorry, you are not allowed to access this operation");
+        require(winners[msg.sender] != 0, "Sorry, you are not allowed to access this operation");
         
         // Mapping from token ID to account balances
         return balanceOf(msg.sender, _balancesnft[msg.sender]);
@@ -264,7 +291,7 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
                 uint24 _winnerTokenPRTID = uint24(PRTID + 1 + xrand + uint24(uint32((168888*i)/10000))); 
                 address winneraddr = getAddrFromPRTID(_winnerTokenPRTID);
                 if (winneraddr != address(0)) {
-                    winners[winneraddr] = true;
+                    winners[winneraddr] = _winnerTokenPRTID;
                     emit RTWinnerAddress(winneraddr, _winnerTokenPRTID); //this needs to be 10000+i <- and i needs to be random also, 1st stage sale
                 }
                 emit RTWinnerTokenID(i, _winnerTokenPRTID, counter);//in case to track all winer tickets in logs
@@ -344,6 +371,7 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
 
         if (_tokenPRTID_index.current() == MAX_SUPPLY_PRT) {
             mintIsOpen = true; //toggle presale is done
+            presalePRT = false;
             emit EmitmintIsOpen('Presale PRT is done.');
             // console.log("Presale PRT is DONE!");
         } else {
@@ -383,7 +411,7 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
         override
         public
         view
-        returns (bool)
+        returns (bool isOperator)
     {
         // Whitelist OpenSea proxy contract for easy trading.
         ProxyRegistry proxyRegistry = ProxyRegistry(proxyRegistryAddress);
@@ -391,7 +419,7 @@ contract PRT is ERC1155, Ownable, ReentrancyGuard {
             return true;
         }
 
-        return super.isApprovedForAll(owner, operator);
+        return ERC1155.isApprovedForAll(owner, operator);
     }
 
      

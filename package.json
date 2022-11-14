@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "multi-token-standard": "github:ProjectOpenSea/multi-token-standard",
     "@alch/alchemy-web3": "^1.4.6",
     "@nomiclabs/hardhat-ethers": "^2.1.1",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
