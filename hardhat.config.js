@@ -39,7 +39,7 @@ module.exports = {
         mnemonic,
         path: "m/44'/60'/0'/0/",
         initialIndex: 0,
-        count: 1889,
+        count: 1800,
       }
   },
   },
