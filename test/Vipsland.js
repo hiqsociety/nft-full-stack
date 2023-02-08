@@ -762,7 +762,7 @@ describe("Vipslad contract deploy", function () {
           }
           console.log('mintNONMPForNomalUser() end', _index, acc?.address);
       }
-      _mintNONMPForNomalUser(1401)
+      await _mintNONMPForNomalUser(1401)
 
       async function _mintNONMPForInternalTeam (_last_index) {
         console.log("mintNONMPForInternalTeam() start")
@@ -805,7 +805,7 @@ describe("Vipslad contract deploy", function () {
         }
         console.log('mintNONMPForInternalTeam() end', _index, acc?.address);
       }
-      _mintNONMPForInternalTeam(1601);
+      await _mintNONMPForInternalTeam(1601);
        
             
       async function _mintNONMPForAIRDROP (_last_index) {
@@ -849,7 +849,7 @@ describe("Vipslad contract deploy", function () {
         console.log('mintNONMPForAIRDROP() end', _index, acc?.address);
 
       }
-      _mintNONMPForAIRDROP(1701)
+      await _mintNONMPForAIRDROP(1701)
 
       file.on('finish', () => {
         console.log('all done');
