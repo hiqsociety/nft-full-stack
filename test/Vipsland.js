@@ -713,9 +713,11 @@ describe("Vipslad contract deploy", function () {
     it.only(`${i++} All mintNONMP() for stage 1,2,3 `, async function () {
 
       const { hardhatVipslad, owner, addrs } = await loadFixture(deployVipslandFixture);
-      await hardhatVipslad.deployed();
+      const r = await hardhatVipslad.deployed();
       //sold all for contract 0xc38835D68a4d9c1a81799dAd11f2C7646aC33bad  owner 0x99fEDB8bB1A0d4aa63D825a8333B7275A04d5ed8
-
+      console.log(`r.address`, r.address);
+      //r.address 0xc38835D68a4d9c1a81799dAd11f2C7646aC33bad
+      
       let _qnt_minter_by_user = {}, _index=0;
       let acc;
       
