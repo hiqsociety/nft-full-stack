@@ -259,7 +259,6 @@ contract Vipsland is ERC1155Supply, Ownable, ReentrancyGuard {
 
         if (iCheck == uint8(intArr.length)) {
             numIssuedForMP++;
-            console.log(20000);
             return 20000;
         }
         /** end chk and reassign IDs */
@@ -278,8 +277,6 @@ contract Vipsland is ERC1155Supply, Ownable, ReentrancyGuard {
         intArr[randval] = intArr[randval] + 1;
         numIssuedForMP++;
 
-        // emit DebugMP(mpid);
-        //console.log(mpid);
         return mpid;
     }
 
@@ -309,7 +306,6 @@ contract Vipsland is ERC1155Supply, Ownable, ReentrancyGuard {
 
         if (iCheck == uint8(intArr.length)) {
             numIssuedForMP++;
-            console.log(20000);
             return 20000;
         }
         /** end chk and reassign IDs */
@@ -328,8 +324,6 @@ contract Vipsland is ERC1155Supply, Ownable, ReentrancyGuard {
         intArr[randval] = intArr[randval] + 1;
         numIssuedForMP++;
 
-        // emit DebugMP(mpid);
-        //console.log(mpid);
         return mpid;
     }
 

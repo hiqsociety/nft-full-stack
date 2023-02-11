@@ -922,7 +922,7 @@ describe("Vipslad contract deploy", function () {
 
         }
       }
-      await _getNextMPIDDebug(20000);
+      await _getNextMPIDDebug(20003);
 
 
       // file.on('finish', () => {
