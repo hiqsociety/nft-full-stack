@@ -121,11 +121,11 @@ contract Vipsland is ERC1155Supply, Ownable, ReentrancyGuard, PaymentSplitter {
         PRICE_PRT_INTERNALTEAM = price;
     }
 
-    uint public constant MAX_SUPPLY_FOR_INTERNALTEAM_TOKEN = 20000;
+    uint32 public constant MAX_SUPPLY_FOR_INTERNALTEAM_TOKEN = 20000;
     uint public qntmintnonmpforinternalteam = 0;
-    uint public constant EACH_RAND_SLOT_NUM_TOTAL_FOR_INTERNALTEAM = 1000;
+    uint32 public constant EACH_RAND_SLOT_NUM_TOTAL_FOR_INTERNALTEAM = 1000;
     uint32 public numIssuedForInternalTeamIDs = 0;
-    uint public constant STARTINGIDFORINTERNALTEAM = 160001;
+    uint32 public constant STARTINGIDFORINTERNALTEAM = 160001;
     uint[] public intArrPRTInternalTeam;
 
     //NONMP AIRDROP8888 - 180001-188888
@@ -489,12 +489,103 @@ contract Vipsland is ERC1155Supply, Ownable, ReentrancyGuard, PaymentSplitter {
 
         if (presalePRT == 3) {
             mintNONMPForAIRDROP(_amount_wanted_able_to_get);
+            //mintNONMPForX(3,)
         } else if (presalePRT == 2) {
             mintNONMPForInternalTeam(_amount_wanted_able_to_get);
         } else if (presalePRT == 1) {
             mintNONMPForNomalUser(_amount_wanted_able_to_get);
         }
     }
+
+
+    //qntmintnonmpforinternalteam needs to be updated, and intArray needs to be updated.
+    function mintNONMPForX(uint8 xtype, uint256[] memory intArray, uint256 qntTOTALMINT, uint8 qnt) internal returns (uint256, uint256[] memory)   {
+        uint32 initialNum;
+        uint32 numIssued;
+        uint32 max_supply_token;
+        uint32 each_rand_slot_num_total;
+        //uint256[] memory intArray;
+        uint256 priceprt;
+        //uint256 *qntTOTALMINT;
+ 
+        if (xtype == 2) {
+            //this is internalteam
+            initialNum = STARTINGIDFORINTERNALTEAM;
+            numIssued = numIssuedForInternalTeamIDs;
+            max_supply_token = MAX_SUPPLY_FOR_INTERNALTEAM_TOKEN;
+            each_rand_slot_num_total = EACH_RAND_SLOT_NUM_TOTAL_FOR_INTERNALTEAM;
+            //intArray = &intArrPRTInternalTeam; //pls verify if this is copied by reference
+            //qntTOTALMINT = &qntmintnonmpforinternalteam; //pls verify that this MUST be copied by reference
+            priceprt = PRICE_PRT_INTERNALTEAM;
+        }
+ 
+        bool isRemainMessageNeeds = false;
+ 
+        //added:0
+        require(userNONMPs[msg.sender] < MAX_PRT_AMOUNT_PER_ACC, "Limit is 100 tokens");
+        require(qnt <= MAX_PRT_AMOUNT_PER_ACC_PER_TRANSACTION, "Max mint per transaction is 35 tokens");
+ 
+        //added:1
+        if (userNONMPs[msg.sender] + qnt > MAX_PRT_AMOUNT_PER_ACC) {
+            qnt = uint8(MAX_PRT_AMOUNT_PER_ACC - userNONMPs[msg.sender]);
+            isRemainMessageNeeds = true;
+        }
+ 
+        //INTERNAL TEAM - 160001-180000
+        (uint32 initID, uint8 _qnt, uint32 _numIssued, uint8 _randval) = getNextNONMPID(qnt, initialNum, numIssued, max_supply_token, each_rand_slot_num_total, intArray);
+        if (_qnt != qnt) {
+            isRemainMessageNeeds = true;
+        }
+ 
+        //added:2
+ 
+        //added:3
+        uint256 weiBalanceWallet = msg.value;
+        require(weiBalanceWallet >= priceprt * _qnt, "Insufficient funds");
+ 
+        //added:4
+        payable(owner()).transfer(priceprt * _qnt); //Send money to owner of contract
+ 
+        //added:5
+        uint256[] memory ids = new uint256[](_qnt);
+        uint256[] memory amounts = new uint256[](_qnt);
+        for (uint256 i = 0; i < _qnt; i++) {
+            ids[i] = uint256(initID + i);
+            amounts[i] = 1;
+        }
+ 
+        _mintBatch(msg.sender, ids, amounts, "");
+ 
+        //add event
+        for (uint256 i = 0; i < _qnt; i++) {
+            prtPerAddress[uint32(ids[i])] = msg.sender;
+        }
+ 
+        //added:6
+        userNONMPs[msg.sender] = uint8(userNONMPs[msg.sender] + ids.length);
+ 
+        //added:7
+        //update:
+        numIssuedForInternalTeamIDs = _numIssued;
+        intArray[_randval] += _qnt;
+ 
+        //added:8
+        qntTOTALMINT += _qnt;
+        if (qntTOTALMINT >= MAX_SUPPLY_FOR_INTERNALTEAM_TOKEN) {
+            if ((xtype == 1) || (xtype == 2)) {
+                mintInternalTeamMPIsOpen = true;
+            }
+        }
+ 
+        //added:9
+        emit DitributePRTs(msg.sender, userNONMPs[msg.sender], ids[_qnt - 1]);
+        if (isRemainMessageNeeds) {
+            emit RemainMessageNeeds(msg.sender, _qnt);
+        }
+ 
+        return (qntTOTALMINT, intArray);
+    }
+
 
     function mintNONMPForAIRDROP(uint8 qnt) internal {
         bool isRemainMessageNeeds = false;
